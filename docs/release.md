@@ -28,15 +28,15 @@ git add web && git commit -m "Bundle the research room's web at <commit>"
 
 app 裡的網頁是建置當下凍結的。網站換新介面以後，要再匯入一次並發版，app 才會帶上。
 
-## CI（目前是草稿）
+## CI
 
-三個 workflow 放在 `.github/workflow-drafts/`，GitHub 不會執行。新前端匯入以後才搬到
-`.github/workflows/` 啟用。
+`mobile.yml` 已啟用（`.github/workflows/`）。`mobile-release.yml` 與 `mobile-refresh.yml` 仍放在
+`.github/workflow-drafts/`，GitHub 不會執行；等正式主機對 `capacitor://localhost` 回 CORS 後才搬過去啟用。
 
 - `mobile.yml`：每個 PR 都跑。
   - Ubuntu：版本鎖定、`npm audit`、`web/` 的來源與 API 網址。
   - macOS：建置模擬器版，檢查 bundle id、版本、名稱、出口合規鍵、只支援 iPhone、只允許直向、網頁有打包；
-    再建置一次不簽章的 Release 裝置版；附深淺色模擬器截圖。
+    再建置一次不簽章的 Release 裝置版；附深淺色模擬器截圖。正式站還沒對 app 回 CORS 時，run summary 會註明截圖是離線或錯誤狀態，不是對照依據。
 - `mobile-release.yml`：手動執行，或由 `mobile-refresh.yml` 呼叫。
   - 先確認正式站對 `capacitor://localhost` 回 CORS。Cloudflare 擋住 runner 時，自己用 curl 確認，再勾
     `production_checked` 重跑。

@@ -1,9 +1,9 @@
 name: Mobile
 
-# DRAFT: kept in .github/workflow-drafts/, where GitHub does not run it. Enable by moving it
-# to .github/workflows/ once web/ holds the approved frontend (scripts/import-web.sh).
-#
 # Builds the app on every pull request. The repository is public, so the macOS runner is free.
+# Nothing here signs, uploads or depends on the production site; only the best-effort
+# screenshots load it. Mobile release and Mobile refresh stay in .github/workflow-drafts/
+# until the production host serves the app's origin.
 on:
   pull_request:
   workflow_dispatch:
@@ -87,11 +87,26 @@ jobs:
             -destination "generic/platform=iOS" -derivedDataPath "${RUNNER_TEMP}/dd-release" \
             CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO build
       # Best effort: the app on a simulator against the production site, light and dark.
+      # Until the production host serves this app's origin with CORS, the app can read nothing
+      # there and shows its offline or error state; the summary says which case a run was.
       - name: Simulator screenshots
         continue-on-error: true
         run: |
           set -euo pipefail
           mkdir -p screenshots
+          allowed="$(curl --silent --max-time 20 --output /dev/null --dump-header - \
+            -H "Origin: capacitor://localhost" https://invest.oraclelee.com/api/reports \
+            | tr -d '\r' | sed -n 's/^access-control-allow-origin: //Ip' | head -n 1)" || allowed=""
+          {
+            echo "### Simulator screenshots"
+            if [ "${allowed}" = "capacitor://localhost" ]; then
+              echo "Production serves capacitor://localhost, so the screenshots show the app reading the live site."
+            else
+              echo "**截圖對象是安裝前的舊站，不是對照依據。** invest.oraclelee.com did not answer"
+              echo "capacitor://localhost with CORS from this runner (got '${allowed}'), so the app can read"
+              echo "nothing there and the screenshots show its offline or error state, not the approved boards."
+            fi
+          } >> "${GITHUB_STEP_SUMMARY}"
           udid="$(xcrun simctl list devices available -j | node -e '
             const d = JSON.parse(require("fs").readFileSync(0, "utf8")).devices;
             const phones = Object.entries(d).filter(([rt]) => rt.includes("iOS")).flatMap(([, list]) => list)
