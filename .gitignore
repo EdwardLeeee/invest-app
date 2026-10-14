@@ -1,0 +1,16 @@
+node_modules/
+*.tsbuildinfo
+.env
+.DS_Store
+
+# Signing material never enters this repository; it lives in ~/.config/invest-mobile/ios
+# on the developer machine and reaches CI as GitHub secrets.
+*.p8
+*.p12
+*.mobileprovision
+*.cer
+*.certSigningRequest
+*.key
+*.pem
+asc.json
+p12-password.txt
