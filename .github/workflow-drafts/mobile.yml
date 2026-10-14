@@ -1,0 +1,116 @@
+name: Mobile
+
+# DRAFT: kept in .github/workflow-drafts/, where GitHub does not run it. Enable by moving it
+# to .github/workflows/ once web/ holds the approved frontend (scripts/import-web.sh).
+#
+# Builds the app on every pull request. The repository is public, so the macOS runner is free.
+on:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: mobile-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  checks:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: "22"
+          cache: npm
+      - run: npm ci
+      - run: npm run check:capacitor
+      - run: npm audit --audit-level=high
+      - name: Check the scripts parse
+        run: for f in scripts/*.sh; do bash -n "$f"; done
+      # web/ is the research room's frontend as scripts/import-web.sh built it.
+      - name: Check the web build
+        run: |
+          set -euo pipefail
+          fail() { echo "::error::$1"; exit 1; }
+          [ -f web/index.html ] || fail "web/index.html is missing"
+          [ -f web/BUILD.json ] || fail "web/BUILD.json is missing; import the web with scripts/import-web.sh"
+          origin="$(jq -r .api_origin web/BUILD.json)"
+          [ "${origin}" = https://invest.oraclelee.com ] || fail "web/ was built for ${origin}"
+          grep -rqF https://invest.oraclelee.com web/assets || fail "web/ does not call the production API"
+          [ -z "$(find web -name '*.map' -print -quit)" ] || fail "web/ has source maps"
+          echo "web/ was built from $(jq -r .commit web/BUILD.json) ($(jq -r .ref web/BUILD.json))" >> "${GITHUB_STEP_SUMMARY}"
+
+  ios:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: "22"
+          cache: npm
+      - run: npm ci
+      - run: npx cap sync ios
+      - name: Build for the simulator
+        working-directory: ios/App
+        run: |
+          set -euo pipefail
+          xcodebuild -version
+          version="$(node -p "require('../../package.json').version")"
+          xcodebuild -project App.xcodeproj -scheme App -configuration Debug \
+            -sdk iphonesimulator -destination "generic/platform=iOS Simulator" \
+            -derivedDataPath "${RUNNER_TEMP}/dd" \
+            MARKETING_VERSION="${version}" CODE_SIGNING_ALLOWED=NO build
+      - name: Check the built app
+        run: |
+          set -euo pipefail
+          app="${RUNNER_TEMP}/dd/Build/Products/Debug-iphonesimulator/App.app"
+          version="$(node -p "require('./package.json').version")"
+          value() { plutil -extract "$1" raw -o - "${app}/Info.plist"; }
+          fail() { echo "::error::$1"; exit 1; }
+          [ "$(value CFBundleIdentifier)" = com.oraclelee.invest ] || fail "bundle id"
+          [ "$(value CFBundleShortVersionString)" = "${version}" ] || fail "version"
+          [ "$(value CFBundleDisplayName)" = "個股研究室" ] || fail "home screen name"
+          [ "$(value ITSAppUsesNonExemptEncryption)" = false ] || fail "export compliance key"
+          [ "$(plutil -extract UIDeviceFamily json -o - "${app}/Info.plist")" = "[1]" ] || fail "iPhone only"
+          [ "$(plutil -extract UISupportedInterfaceOrientations json -o - "${app}/Info.plist")" = '["UIInterfaceOrientationPortrait"]' ] \
+            || fail "portrait only"
+          plutil -lint "${app}/PrivacyInfo.xcprivacy"
+          [ -f "${app}/public/index.html" ] || fail "web bundle missing"
+          [ -f "${app}/public/BUILD.json" ] || fail "web/BUILD.json missing from the bundle"
+          echo "app bundle checks passed"
+      - name: Build Release for devices without signing
+        working-directory: ios/App
+        run: |
+          xcodebuild -project App.xcodeproj -scheme App -configuration Release \
+            -destination "generic/platform=iOS" -derivedDataPath "${RUNNER_TEMP}/dd-release" \
+            CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO build
+      # Best effort: the app on a simulator against the production site, light and dark.
+      - name: Simulator screenshots
+        continue-on-error: true
+        run: |
+          set -euo pipefail
+          mkdir -p screenshots
+          udid="$(xcrun simctl list devices available -j | node -e '
+            const d = JSON.parse(require("fs").readFileSync(0, "utf8")).devices;
+            const phones = Object.entries(d).filter(([rt]) => rt.includes("iOS")).flatMap(([, list]) => list)
+              .filter((x) => x.name.startsWith("iPhone"));
+            console.log(phones.at(-1).udid);')"
+          xcrun simctl boot "${udid}"
+          xcrun simctl bootstatus "${udid}" -b
+          xcrun simctl install "${udid}" "${RUNNER_TEMP}/dd/Build/Products/Debug-iphonesimulator/App.app"
+          for mode in light dark; do
+            xcrun simctl ui "${udid}" appearance "${mode}"
+            xcrun simctl launch "${udid}" com.oraclelee.invest
+            sleep 10
+            xcrun simctl io "${udid}" screenshot "screenshots/app-${mode}.png"
+            xcrun simctl terminate "${udid}" com.oraclelee.invest
+          done
+      - if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: ios-simulator-screenshots
+          path: screenshots/
+          retention-days: 14
+          if-no-files-found: ignore
