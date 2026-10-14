@@ -16,8 +16,8 @@ it is not on the App Store.
 
 ## 狀態
 
-建置中：新介面的設計已核准，正在實作；`web/` 目前只有一張佔位頁。app 圖示已定案。
-CI 流程是草稿（`.github/workflow-drafts/`，GitHub 不會執行），等新前端完成並匯入後才啟用。
+建置中：app 圖示與啟動畫面已定案。
+`web/` 已是核准的新介面。PR 檢查（`.github/workflows/mobile.yml`）已啟用；發版與 90 天自動重建仍是草稿（`.github/workflow-drafts/`），等正式主機提供 app 的 CORS 後才啟用。
 
 ## 文件
 
