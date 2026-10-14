@@ -15,16 +15,19 @@ Connect API 金鑰都**沿用四子棋那一套**，所以不用新建憑證、�
 - 網頁上方如果有「需要同意新版協議」的橫幅，先按進去同意，不然後面的按鈕會是灰的。
 - 下載的檔案留在 `~/Downloads` 就好，不用搬。
 
-## 0. 接上外接硬碟（invest-app 還原簽章檔）
+## 0. 接上外接硬碟（還原簽章檔）
 
-1. 把放備份的外接硬碟接上這台電腦。
-2. 跟 invest-app 說「接上了」。如果你記得備份資料夾的位置（例如某個磁碟裡的 `connect4-mobile/ios`），一起告訴它；
-   不記得也沒關係，它會只列檔名來找。
-3. invest-app 只會**複製**下面這幾個檔到 `~/.config/invest-mobile/ios/`（只有你的帳號能讀），不會改動硬碟上的備份，
-   也不會放進任何 repo：
+備份在外接硬碟的 `iOS金鑰/` 資料夾（2026-09-26 建立）。
+
+1. 把外接硬碟接上這台電腦。invest-app 會用**唯讀**方式掛載，不會改到硬碟上的任何檔案。
+2. 硬碟上的檔案權限屬於舊電腦的帳號，現在的帳號讀不到，所以複製這一步要你在一般終端機（Ctrl+Alt+T）
+   執行 invest-app 給你的那一行 `sudo install …` 並輸入登入密碼。它只會把三個檔**複製**到
+   `~/.config/invest-mobile/ios/`（只有你的帳號能讀），不會放進任何 repo：
    - `distribution.p12`、`p12-password.txt`（發布憑證與它的密碼）
-   - `AuthKey_XXXXXXXXXX.p8`（API 金鑰）與 `asc.json`（金鑰的 Key ID、Issuer ID，不是秘密）
-4. 複製完 invest-app 會告訴你**發布憑證的到期日**，第 2 步要用它挑對憑證。之後就可以拔掉硬碟。
+   - `AuthKey_<Key ID>.p8`（API 金鑰）
+3. Key ID 與 Issuer ID 不是秘密，invest-app 直接從硬碟上的 `說明.txt` 讀出來寫成 `asc.json`。
+4. 發布憑證的到期日是 **2027-09-25**（說明.txt 記載；複製完 invest-app 會再從憑證本身核對）。
+   第 2 步要用它挑對憑證。之後就可以拔掉硬碟。
 
 ## 1. 登記 app 的身分（App ID）
 
@@ -45,7 +48,7 @@ Connect API 金鑰都**沿用四子棋那一套**，所以不用新建憑證、�
 2. 按「Profiles」標題旁的 **＋**。
 3. 在 **Distribution** 底下選 **App Store Connect** → **Continue**。
 4. **App ID** 選 `Invest (com.oraclelee.invest)` → **Continue**。
-5. 憑證清單裡勾 **Apple Distribution**、**到期日和第 0 步 invest-app 告訴你的一樣**的那一張 → **Continue**。
+5. 憑證清單裡勾 **Apple Distribution**、**到期日是 2027/09/25** 的那一張 → **Continue**。
    （如果清單只有一張，就是它。）
 6. **Provisioning Profile Name** 一定要填 `Invest App Store`（大小寫、空白都要一樣，程式用這個名字找它）→ **Generate**。
 7. 按 **Download**。檔案（類似 `Invest_App_Store.mobileprovision`）會存到 `~/Downloads`。
@@ -86,7 +89,7 @@ Connect API 金鑰都**沿用四子棋那一套**，所以不用新建憑證、�
 
 ## 7. 交給 invest-app
 
-跟 invest-app 說「好了」，並貼上兩個代碼：**Team ID** 和 **app 的 Apple ID**。它們不是秘密，可以直接貼在對話裡。
+跟 invest-app 說「好了」，並貼上 **app 的 Apple ID**（第 5 步）。Team ID 備份說明檔裡已經有，第 6 步抄來只是讓 invest-app 核對一致。它們不是秘密，可以直接貼在對話裡。
 描述檔留在 `~/Downloads` 就好。
 
 invest-app 接著會：

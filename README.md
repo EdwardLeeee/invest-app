@@ -16,12 +16,13 @@ it is not on the App Store.
 
 ## 狀態
 
-建置中：網頁的新介面還在設計，CI 流程是草稿（`.github/workflow-drafts/`，GitHub 不會執行），
-等新前端與正式站的 CORS 完成後才啟用。
+建置中：網頁的新介面還在設計，`web/` 目前只有一張佔位頁，app 圖示也是佔位圖（標著「暫代」）。
+CI 流程是草稿（`.github/workflow-drafts/`，GitHub 不會執行），等新前端完成並匯入後才啟用。
 
 ## 文件
 
 - [蘋果帳號設定](docs/apple-setup.md)：帳號持有人在 Apple 網站上要做的步驟。
+- [建置、簽章與發布](docs/release.md)：換網頁、CI、簽章素材、一年一次的到期。
 
 ## 授權
 

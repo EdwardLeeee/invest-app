@@ -1,0 +1,19 @@
+{
+  "name": "invest-app",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "sync": "cap sync ios",
+    "check:capacitor": "node scripts/check-capacitor-versions.mjs",
+    "import-web": "scripts/import-web.sh"
+  },
+  "dependencies": {
+    "@capacitor/core": "8.5.2",
+    "@capacitor/ios": "8.5.2"
+  },
+  "devDependencies": {
+    "@capacitor/cli": "8.5.2",
+    "typescript": "5.8.3"
+  }
+}

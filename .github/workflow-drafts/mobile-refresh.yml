@@ -1,0 +1,69 @@
+name: Mobile refresh
+
+# DRAFT: kept in .github/workflow-drafts/, where GitHub does not run it. Enable by moving it
+# to .github/workflows/ together with mobile-release.yml.
+#
+# TestFlight builds expire 90 days after upload. Once a week this asks App Store Connect how
+# long the newest valid build has left, and only when it is under min_days (or there is
+# none) does it run Mobile release, which uploads main again with a new build number.
+# A failed week is retried the next week, long before the build actually expires.
+on:
+  schedule:
+    - cron: "23 2 * * 1" # Mondays 02:23 UTC, 10:23 in Taipei
+  workflow_dispatch:
+    inputs:
+      min_days:
+        description: Rebuild when the newest build has fewer days left than this
+        type: number
+        default: 30
+
+permissions:
+  contents: read
+
+concurrency:
+  group: mobile-refresh
+  cancel-in-progress: false
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    outputs:
+      needed: ${{ steps.latest.outputs.needed }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: "22"
+      - id: latest
+        name: Ask App Store Connect about the newest build
+        env:
+          ASC_KEY_ID: ${{ secrets.ASC_API_KEY_ID }}
+          ASC_ISSUER_ID: ${{ secrets.ASC_API_ISSUER_ID }}
+          ASC_KEY_P8_BASE64: ${{ secrets.ASC_API_KEY_P8_BASE64 }}
+          ASC_APP_ID: ${{ vars.ASC_APP_ID }}
+          MIN_DAYS: ${{ inputs.min_days || 30 }}
+        run: |
+          set -euo pipefail
+          result="$(node scripts/asc-latest-build.mjs --min-days "${MIN_DAYS}")"
+          echo "${result}"
+          needed="$(jq -r .needed <<< "${result}")"
+          echo "needed=${needed}" >> "${GITHUB_OUTPUT}"
+          if [ "$(jq -r '.latest == null' <<< "${result}")" = true ]; then
+            echo "No valid TestFlight build; rebuilding." >> "${GITHUB_STEP_SUMMARY}"
+          else
+            jq -r '"Newest build \(.latest.version) expires \(.latest.expires), \(.latest.days_left) days left."' \
+              <<< "${result}" >> "${GITHUB_STEP_SUMMARY}"
+            if [ "${needed}" = true ]; then
+              echo "Under ${MIN_DAYS} days; rebuilding." >> "${GITHUB_STEP_SUMMARY}"
+            fi
+          fi
+
+  release:
+    needs: check
+    if: needs.check.outputs.needed == 'true'
+    uses: ./.github/workflows/mobile-release.yml
+    # The same main that was released before: the production check already passed for it,
+    # and the runner may be blocked by Cloudflare on an unattended run.
+    with:
+      production_checked: true
+    secrets: inherit
