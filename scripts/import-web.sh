@@ -27,9 +27,10 @@ fi
 
 work="$(mktemp -d)"
 trap 'rm -rf "${work}"' EXIT
-# A clean export of the commit, not the working tree: frontend/ plus the published
-# reports that the type check (tsc -b) reads through the tests.
-git -C "${INVEST_REPO}" archive "${commit}" frontend reports/published | tar -x -C "${work}"
+# A clean export of the commit, not the working tree: frontend/ plus the published reports
+# and settlements that the type check (tsc -b) reads through the tests, as the research
+# repository's Containerfile copies them for its own frontend build.
+git -C "${INVEST_REPO}" archive "${commit}" frontend reports/published reports/settlements | tar -x -C "${work}"
 (
     cd "${work}/frontend"
     npm ci --no-audit --no-fund --loglevel=error
