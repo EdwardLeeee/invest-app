@@ -4,20 +4,52 @@
     <dependencies>
         <deployment identifier="iOS"/>
         <plugIn identifier="com.apple.InterfaceBuilder.IBCocoaTouchPlugin" version="17105"/>
-        <capability name="System colors in document resources" minToolsVersion="11.0"/>
+        <capability name="Named colors" minToolsVersion="9.0"/>
         <capability name="documents saved in the Xcode 8 format" minToolsVersion="8.0"/>
     </dependencies>
     <scenes>
         <!--View Controller-->
-        <!-- A plain view in the system background colour, so launch follows light and dark mode.
-             The designed launch screen replaces it once invest-ui's set is approved. -->
+        <!-- P13 (R2-13): the icon and 個股研究室 centred as one group, following light and dark mode.
+             Prototype: icon 120 pt with its corner and shadow (baked into LaunchIcon on a 184 pt
+             canvas), an 18 pt gap, then the name at 22 pt, weight 800, letter-spacing .04em, in a
+             36.3 pt line box. The group is 174.3 pt tall, so the icon's centre sits 27 pt above the
+             screen's; the name's ink is 68 pt below it, as measured on the approved board. Colours: the bg and ink tokens of tokens.css. -->
         <scene sceneID="EHf-IW-A2E">
             <objects>
                 <viewController id="01J-lp-oVM" sceneMemberID="viewController">
                     <view key="view" contentMode="scaleToFill" id="snD-IY-ifK">
                         <rect key="frame" x="0.0" y="0.0" width="375" height="667"/>
                         <autoresizingMask key="autoresizingMask" widthSizable="YES" heightSizable="YES"/>
-                        <color key="backgroundColor" systemColor="systemBackgroundColor"/>
+                        <subviews>
+                            <imageView clipsSubviews="YES" userInteractionEnabled="NO" contentMode="center" horizontalHuggingPriority="251" verticalHuggingPriority="251" image="LaunchIcon" translatesAutoresizingMaskIntoConstraints="NO" id="Lnc-Ic-001">
+                                <rect key="frame" x="95.5" y="214.5" width="184" height="184"/>
+                                <constraints>
+                                    <constraint firstAttribute="width" constant="184" id="Lnc-Ic-W01"/>
+                                    <constraint firstAttribute="height" constant="184" id="Lnc-Ic-H01"/>
+                                </constraints>
+                            </imageView>
+                            <label opaque="NO" userInteractionEnabled="NO" contentMode="left" horizontalHuggingPriority="251" verticalHuggingPriority="251" textAlignment="center" lineBreakMode="tailTruncation" baselineAdjustment="alignBaselines" adjustsFontSizeToFit="NO" translatesAutoresizingMaskIntoConstraints="NO" id="Lnc-Nm-001">
+                                <rect key="frame" x="132" y="387" width="111" height="31"/>
+                                <attributedString key="attributedText">
+                                    <fragment content="個股研究室">
+                                        <attributes>
+                                            <color key="NSColor" name="LaunchInk"/>
+                                            <font key="NSFont" size="22" name="PingFangTC-Semibold"/>
+                                            <real key="NSKern" value="0.88"/>
+                                            <paragraphStyle key="NSParagraphStyle" alignment="center" lineBreakMode="wordWrapping" baseWritingDirection="natural" tighteningFactorForTruncation="0.0"/>
+                                        </attributes>
+                                    </fragment>
+                                </attributedString>
+                                <nil key="highlightedColor"/>
+                            </label>
+                        </subviews>
+                        <color key="backgroundColor" name="LaunchBackground"/>
+                        <constraints>
+                            <constraint firstItem="Lnc-Ic-001" firstAttribute="centerX" secondItem="snD-IY-ifK" secondAttribute="centerX" id="Lnc-Cx-001"/>
+                            <constraint firstItem="Lnc-Ic-001" firstAttribute="centerY" secondItem="snD-IY-ifK" secondAttribute="centerY" constant="-27" id="Lnc-Cy-001"/>
+                            <constraint firstItem="Lnc-Nm-001" firstAttribute="centerX" secondItem="snD-IY-ifK" secondAttribute="centerX" id="Lnc-Cx-002"/>
+                            <constraint firstItem="Lnc-Nm-001" firstAttribute="centerY" secondItem="snD-IY-ifK" secondAttribute="centerY" constant="68" id="Lnc-Cy-002"/>
+                        </constraints>
                     </view>
                 </viewController>
                 <placeholder placeholderIdentifier="IBFirstResponder" id="iYj-Kq-Ea1" userLabel="First Responder" sceneMemberID="firstResponder"/>
@@ -26,8 +58,12 @@
         </scene>
     </scenes>
     <resources>
-        <systemColor name="systemBackgroundColor">
-            <color white="1" alpha="1" colorSpace="custom" customColorSpace="genericGamma22GrayColorSpace"/>
-        </systemColor>
+        <image name="LaunchIcon" width="184" height="184"/>
+        <namedColor name="LaunchBackground">
+            <color red="0.95686274509803926" green="0.94901960784313721" blue="0.92941176470588238" alpha="1" colorSpace="custom" customColorSpace="sRGB"/>
+        </namedColor>
+        <namedColor name="LaunchInk">
+            <color red="0.090196078431372548" green="0.090196078431372548" blue="0.10588235294117647" alpha="1" colorSpace="custom" customColorSpace="sRGB"/>
+        </namedColor>
     </resources>
 </document>
