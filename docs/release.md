@@ -44,6 +44,8 @@ app 裡的網頁是建置當下凍結的。網站換新介面以後，要再匯�
 - `mobile-refresh.yml`：每週一 02:23 UTC 執行。
   - 用 `scripts/asc-latest-build.mjs` 查最新有效建置還剩幾天，少於 30 天才呼叫 `mobile-release.yml` 重建。
   - TestFlight 建置 90 天過期，所以最晚第 60 天左右會重建一次；某一週失敗，下一週會再試。
+  - **保活**：公開 repo 60 天沒有活動，GitHub 會停用排程 workflow，而 workflow 自己的執行不算活動。
+    所以同一個 workflow 每週也會看 main 最後一次 commit 是幾天前；超過 50 天就推一個空 commit。
 
 ## 簽章素材
 
