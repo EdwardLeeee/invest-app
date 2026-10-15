@@ -50,9 +50,9 @@ jobs:
           xcrun simctl bootstatus "${udid}" -b
           xcrun simctl install "${udid}" "${RUNNER_TEMP}/dd/Build/Products/Debug-iphonesimulator/App.app"
           xcrun simctl launch --console-pty "${udid}" com.oraclelee.invest > probe/app-console.log 2>&1 &
-          for t in 5 12 20 28 36; do
-            sleep $(( t - ${prev:-0} )); prev=$t
-            xcrun simctl io "${udid}" screenshot "probe/t${t}s.png"
+          for t in $(seq 3 3 42); do
+            sleep 3
+            xcrun simctl io "${udid}" screenshot "probe/t$(printf %02d "${t}")s.png"
           done
           xcrun simctl terminate "${udid}" com.oraclelee.invest || true
           sleep 2
