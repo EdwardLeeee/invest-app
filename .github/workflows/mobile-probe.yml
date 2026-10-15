@@ -1,0 +1,67 @@
+name: Mobile probe
+
+# Throwaway diagnosis (never merged): opens the 早報 list, the first issue and its appendix
+# in the simulator build of web/, with a logging probe injected after cap sync.
+on:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  probe:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: "22"
+          cache: npm
+      - run: npm ci
+      - run: npx cap sync ios
+      - name: Inject the probe into the bundled page
+        run: |
+          set -euo pipefail
+          page=ios/App/App/public/index.html
+          node -e '
+            const fs = require("fs"); const [page, js] = process.argv.slice(1);
+            const html = fs.readFileSync(page, "utf8");
+            fs.writeFileSync(page, html.replace("<head>", `<head>\n<script>${fs.readFileSync(js, "utf8")}</script>`));
+          ' "${page}" .github/probe/probe.js
+          grep -c "\[probe\]" "${page}"
+          cat web/BUILD.json
+      - name: Build for the simulator
+        working-directory: ios/App
+        run: |
+          xcodebuild -project App.xcodeproj -scheme App -configuration Debug \
+            -sdk iphonesimulator -destination "generic/platform=iOS Simulator" \
+            -derivedDataPath "${RUNNER_TEMP}/dd" CODE_SIGNING_ALLOWED=NO build | tail -3
+      - name: Walk to the brief and back out the logs
+        run: |
+          set -euo pipefail
+          mkdir -p probe
+          udid="$(xcrun simctl list devices available -j | node -e '
+            const d = JSON.parse(require("fs").readFileSync(0, "utf8")).devices;
+            const phones = Object.entries(d).filter(([rt]) => rt.includes("iOS")).flatMap(([, l]) => l).filter((x) => x.name.startsWith("iPhone"));
+            const pick = phones.filter((x) => x.name.includes("Pro Max")).at(-1) || phones.at(-1);
+            console.log(pick.udid);')"
+          xcrun simctl list devices | grep "${udid}" | tee probe/device.txt
+          xcrun simctl boot "${udid}"
+          xcrun simctl bootstatus "${udid}" -b
+          xcrun simctl install "${udid}" "${RUNNER_TEMP}/dd/Build/Products/Debug-iphonesimulator/App.app"
+          xcrun simctl launch --console-pty "${udid}" com.oraclelee.invest > probe/app-console.log 2>&1 &
+          for t in 5 12 20 28 36; do
+            sleep $(( t - ${prev:-0} )); prev=$t
+            xcrun simctl io "${udid}" screenshot "probe/t${t}s.png"
+          done
+          xcrun simctl terminate "${udid}" com.oraclelee.invest || true
+          sleep 2
+          echo "### probe lines" >> "${GITHUB_STEP_SUMMARY}"
+          grep -a "probe" probe/app-console.log | sed 's/^/    /' >> "${GITHUB_STEP_SUMMARY}" || echo "    (no probe lines)" >> "${GITHUB_STEP_SUMMARY}"
+          grep -a "probe" probe/app-console.log || true
+      - if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: brief-probe
+          path: probe/
+          retention-days: 14
