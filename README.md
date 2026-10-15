@@ -17,7 +17,7 @@ it is not on the App Store.
 ## 狀態
 
 建置中：app 圖示與啟動畫面已定案。
-`web/` 已是核准的新介面。PR 檢查（`.github/workflows/mobile.yml`）已啟用；發版與 90 天自動重建仍是草稿（`.github/workflow-drafts/`），等正式主機提供 app 的 CORS 後才啟用。
+`web/` 是核准的新介面（正式站同一版）。三個 workflow 都已啟用：PR 檢查、發版（手動）、每週檢查 TestFlight 是否快過期並自動重建。
 
 ## 文件
 

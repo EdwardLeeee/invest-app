@@ -1,8 +1,5 @@
 name: Mobile release
 
-# DRAFT: kept in .github/workflow-drafts/, where GitHub does not run it. Enable by moving it
-# to .github/workflows/ together with mobile-refresh.yml.
-#
 # Signs the app as it is on main (web/ included) and uploads it to App Store Connect; the
 # internal testing group's automatic distribution then sends it to the owner's iPhone.
 # Run by hand after importing a new web build, or from Mobile refresh before a build expires.
