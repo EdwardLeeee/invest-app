@@ -1,8 +1,5 @@
 name: Mobile refresh
 
-# DRAFT: kept in .github/workflow-drafts/, where GitHub does not run it. Enable by moving it
-# to .github/workflows/ together with mobile-release.yml.
-#
 # TestFlight builds expire 90 days after upload. Once a week this asks App Store Connect how
 # long the newest valid build has left, and only when it is under min_days (or there is
 # none) does it run Mobile release, which uploads main again with a new build number.
