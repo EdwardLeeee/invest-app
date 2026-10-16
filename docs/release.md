@@ -39,7 +39,7 @@ app 裡的網頁是建置當下凍結的。網站換新介面以後，要再匯�
 - `mobile-release.yml`：手動執行，或由 `mobile-refresh.yml` 呼叫。
   - 先確認正式站對 `capacitor://localhost` 回 CORS。Cloudflare 對 GitHub runner（Ubuntu、macOS 都一樣）上的 curl
     回 403 挑戰頁（`cf-mitigated: challenge`，2026-10-16 實測），所以這一步通常會停下：先在自己電腦上用
-    `curl -sI -H 'Origin: capacitor://localhost' https://invest.oraclelee.com/api/reports` 確認有
+    `curl -s -D - -o /dev/null -H 'Origin: capacitor://localhost' https://invest.oraclelee.com/api/reports`（GET；用 `-I` 會送 HEAD，API 回 405）確認回 200 且有
     `access-control-allow-origin: capacitor://localhost`，再勾 `production_checked` 執行。app 本身用 WebKit 發的請求不會被挑戰。
   - 接著確認 7 個簽章 secrets 都在，然後封存並上傳到 App Store Connect。
 - `mobile-refresh.yml`：每週一 02:23 UTC 執行。
