@@ -41,6 +41,10 @@ app 裡的網頁是建置當下凍結的。網站換新介面以後，要再匯�
   點開第一份報告，等摘要頁出現；任何 fetch 失敗、HTTP 錯誤或 JS 錯誤都算失敗。這就是 CORS 檢查：Cloudflare 對
   GitHub runner（Ubuntu、macOS 都一樣）上的 curl 回 403 挑戰頁（`cf-mitigated: challenge`，2026-10-16 實測），
   但不擋 app 的 WebKit。結果在 run summary 與 artifact（console 全文與截圖）。
+  發版時封存出來、要上傳的 app 會另外檢查網頁裡沒有 `[smoke]` 字樣，確認簽章的 app 沒帶到檢查腳本。
+  - **和前端的耦合**：腳本用到研究室前端的 `a.rep`（首頁報告列）、`.pg-summary`（報告摘要頁）、`.pg-status`
+    （狀態頁）與「沒有網路連線」字樣。前端改了這些名稱，smoke 會 FAIL（不會誤判通過）；重新匯入 `web/` 後
+    smoke 若 FAIL，先看 console 是不是卡在找不到這些元素，再改 `.github/smoke/smoke.js`。
 - `mobile-release.yml`：手動執行，或由 `mobile-refresh.yml` 呼叫。
   - `preflight`（Ubuntu）確認 `web/BUILD.json` 與 7 個簽章 secrets；`smoke`（macOS）跑模擬器 smoke test；兩者都過才封存並上傳。
   - 只有在 smoke test 因 app 以外的原因失敗（模擬器卡住、runner 故障），而且你自己確認過 app 讀得到正式站時，才勾
