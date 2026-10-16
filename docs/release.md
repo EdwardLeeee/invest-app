@@ -35,15 +35,19 @@ app 裡的網頁是建置當下凍結的。網站換新介面以後，要再匯�
 - `mobile.yml`：每個 PR 都跑。
   - Ubuntu：版本鎖定、`npm audit`、`web/` 的來源與 API 網址。
   - macOS：建置模擬器版，檢查 bundle id、版本、名稱、出口合規鍵、只支援 iPhone、只允許直向、網頁有打包；
-    再建置一次不簽章的 Release 裝置版；附深淺色模擬器截圖（模擬器實際連正式站）。
+    再建置一次不簽章的 Release 裝置版；跑**模擬器 smoke test**（必須通過）；附深淺色模擬器截圖。
+- **模擬器 smoke test**（`scripts/ios-smoke.sh` 加 `.github/smoke/smoke.js`）：把檢查腳本注入模擬器建置的**副本**
+  （簽章的 app 不會有它），在 iPhone 模擬器裡由 app 自己的 WebKit、以 `capacitor://localhost` 讀正式站的報告清單，
+  點開第一份報告，等摘要頁出現；任何 fetch 失敗、HTTP 錯誤或 JS 錯誤都算失敗。這就是 CORS 檢查：Cloudflare 對
+  GitHub runner（Ubuntu、macOS 都一樣）上的 curl 回 403 挑戰頁（`cf-mitigated: challenge`，2026-10-16 實測），
+  但不擋 app 的 WebKit。結果在 run summary 與 artifact（console 全文與截圖）。
 - `mobile-release.yml`：手動執行，或由 `mobile-refresh.yml` 呼叫。
-  - 先確認正式站對 `capacitor://localhost` 回 CORS。Cloudflare 對 GitHub runner（Ubuntu、macOS 都一樣）上的 curl
-    回 403 挑戰頁（`cf-mitigated: challenge`，2026-10-16 實測），所以這一步通常會停下：先在自己電腦上用
-    `curl -s -D - -o /dev/null -H 'Origin: capacitor://localhost' https://invest.oraclelee.com/api/reports`（GET；用 `-I` 會送 HEAD，API 回 405）確認回 200 且有
-    `access-control-allow-origin: capacitor://localhost`，再勾 `production_checked` 執行。app 本身用 WebKit 發的請求不會被挑戰。
-  - 接著確認 7 個簽章 secrets 都在，然後封存並上傳到 App Store Connect。
+  - `preflight`（Ubuntu）確認 `web/BUILD.json` 與 7 個簽章 secrets；`smoke`（macOS）跑模擬器 smoke test；兩者都過才封存並上傳。
+  - 只有在 smoke test 因 app 以外的原因失敗（模擬器卡住、runner 故障），而且你自己確認過 app 讀得到正式站時，才勾
+    `skip_smoke` 重跑。自己確認可以用 `curl -s -D - -o /dev/null -H 'Origin: capacitor://localhost' https://invest.oraclelee.com/api/reports`
+    （GET；用 `-I` 會送 HEAD，API 回 405），看到 200 和 `access-control-allow-origin: capacitor://localhost`。
 - `mobile-refresh.yml`：每週一 02:23 UTC 執行。
-  - 用 `scripts/asc-latest-build.mjs` 查最新有效建置還剩幾天，少於 30 天才呼叫 `mobile-release.yml` 重建。
+  - 用 `scripts/asc-latest-build.mjs` 查最新有效建置還剩幾天，少於 30 天才呼叫 `mobile-release.yml` 重建（同樣要先通過 smoke test）。
   - TestFlight 建置 90 天過期，所以最晚第 60 天左右會重建一次；某一週失敗，下一週會再試。
   - **保活**：公開 repo 60 天沒有活動，GitHub 會停用排程 workflow，而 workflow 自己的執行不算活動。
     所以同一個 workflow 每週也會看 main 最後一次 commit 是幾天前；超過 50 天就推一個空 commit。

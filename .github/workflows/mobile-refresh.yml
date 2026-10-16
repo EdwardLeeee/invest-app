@@ -84,8 +84,5 @@ jobs:
     needs: check
     if: needs.check.outputs.needed == 'true'
     uses: ./.github/workflows/mobile-release.yml
-    # The same main that was released before: the production check already passed for it,
-    # and the runner may be blocked by Cloudflare on an unattended run.
-    with:
-      production_checked: true
+    # The release's simulator smoke test checks production; a failed week is retried the next.
     secrets: inherit
