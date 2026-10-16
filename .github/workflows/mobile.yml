@@ -86,35 +86,14 @@ jobs:
           xcodebuild -project App.xcodeproj -scheme App -configuration Release \
             -destination "generic/platform=iOS" -derivedDataPath "${RUNNER_TEMP}/dd-release" \
             CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO build
-      # Best effort: the app on a simulator against the production site, light and dark.
-      # Until the production host serves this app's origin with CORS, the app can read nothing
-      # there and shows its offline or error state; the summary says which case a run was.
+      # Best effort: the app on a simulator against the production site, light and dark. The
+      # simulator's WebKit reads the site; curl from the runner is challenged by Cloudflare, so
+      # there is no curl pre-check here.
       - name: Simulator screenshots
         continue-on-error: true
         run: |
           set -euo pipefail
           mkdir -p screenshots
-          allowed="$(curl --silent --max-time 20 --output /dev/null --dump-header - \
-            -H "Origin: capacitor://localhost" https://invest.oraclelee.com/api/reports \
-            | tr -d '\r' | sed -n 's/^access-control-allow-origin: //Ip' | head -n 1)" || allowed=""
-          echo "production CORS for capacitor://localhost from this macOS runner: '${allowed}'"
-          # Diagnosis: what Cloudflare answers this runner, with curl's own agent and Safari's.
-          for ua in "" "Mozilla/5.0 (iPhone; CPU iPhone OS 18_7 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Mobile/15E148"; do
-            echo "--- user agent: '${ua:-curl default}'"
-            curl --silent --show-error --max-time 20 --output /dev/null --dump-header - ${ua:+-A "${ua}"} \
-              -H "Origin: capacitor://localhost" https://invest.oraclelee.com/api/reports \
-              | tr -d '\r' | grep -i -E '^HTTP|^server:|^cf-mitigated|^cf-ray|^access-control-allow-origin|^content-type' || echo "curl failed: $?"
-          done
-          {
-            echo "### Simulator screenshots"
-            if [ "${allowed}" = "capacitor://localhost" ]; then
-              echo "Production serves capacitor://localhost, so the screenshots show the app reading the live site."
-            else
-              echo "**截圖對象是安裝前的舊站，不是對照依據。** invest.oraclelee.com did not answer"
-              echo "capacitor://localhost with CORS from this runner (got '${allowed}'), so the app can read"
-              echo "nothing there and the screenshots show its offline or error state, not the approved boards."
-            fi
-          } >> "${GITHUB_STEP_SUMMARY}"
           udid="$(xcrun simctl list devices available -j | node -e '
             const d = JSON.parse(require("fs").readFileSync(0, "utf8")).devices;
             const phones = Object.entries(d).filter(([rt]) => rt.includes("iOS")).flatMap(([, list]) => list)

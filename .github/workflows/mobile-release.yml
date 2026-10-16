@@ -8,8 +8,8 @@ on:
     inputs:
       production_checked:
         description: >-
-          Tick only if the production check cannot reach the site from GitHub's macOS
-          runner and you confirmed https://invest.oraclelee.com serves this app's origin
+          Tick after confirming from your own machine that https://invest.oraclelee.com
+          serves this app's origin; Cloudflare challenges curl from GitHub's runners
         type: boolean
         default: false
   workflow_call:
@@ -50,6 +50,28 @@ jobs:
           echo "version=${version}" >> "${GITHUB_OUTPUT}"
           echo "build=${build}" >> "${GITHUB_OUTPUT}"
           echo "App ${version} (${build}) with the web of $(jq -r .commit web/BUILD.json)." >> "${GITHUB_STEP_SUMMARY}"
+      # The app can read nothing unless the production backend answers its origin with CORS.
+      # Cloudflare answers curl from GitHub's runners, Ubuntu and macOS alike, with a 403
+      # challenge (cf-mitigated: challenge, checked 2026-10-16), so this normally stops a run
+      # unless production_checked is ticked; the app's own WebKit requests are not challenged.
+      - name: Check production serves the app's origin
+        env:
+          PRODUCTION_CHECKED: ${{ inputs.production_checked }}
+        run: |
+          set -euo pipefail
+          allowed="$(curl --silent --show-error --max-time 20 --output /dev/null --dump-header - \
+            -H "Origin: ${APP_ORIGIN}" "${API_ORIGIN}/api/reports" \
+            | tr -d '\r' | sed -n 's/^access-control-allow-origin: //Ip' | head -n 1)" || allowed=""
+          if [ "${allowed}" = "${APP_ORIGIN}" ]; then
+            echo "Production allows ${APP_ORIGIN}." >> "${GITHUB_STEP_SUMMARY}"
+            exit 0
+          fi
+          if [ "${PRODUCTION_CHECKED}" != true ]; then
+            echo "::error::${API_ORIGIN} did not answer ${APP_ORIGIN} with CORS from this runner (got '${allowed}'); Cloudflare challenges curl from GitHub's runners. Check from your own machine (curl -sI -H 'Origin: ${APP_ORIGIN}' ${API_ORIGIN}/api/reports) and run again with production_checked ticked."
+            exit 1
+          fi
+          echo "::warning::production CORS not checked automatically; production_checked was ticked"
+          echo "Production CORS confirmed by hand, not by this run." >> "${GITHUB_STEP_SUMMARY}"
       - id: signing
         name: Check the signing secrets
         env:
@@ -73,36 +95,11 @@ jobs:
           fi
           echo "ios=true" >> "${GITHUB_OUTPUT}"
 
-  # The app can read nothing unless production answers its origin with CORS. This runs on
-  # macOS because Cloudflare blocks GitHub's Ubuntu runners (they get no headers at all),
-  # while the macOS runners reach the site, as the simulator builds show.
-  production:
-    runs-on: macos-latest
-    steps:
-      - name: Check production serves the app's origin
-        env:
-          PRODUCTION_CHECKED: ${{ inputs.production_checked }}
-        run: |
-          set -euo pipefail
-          allowed="$(curl --silent --show-error --max-time 20 --output /dev/null --dump-header - \
-            -H "Origin: ${APP_ORIGIN}" "${API_ORIGIN}/api/reports" \
-            | tr -d '\r' | sed -n 's/^access-control-allow-origin: //Ip' | head -n 1)" || allowed=""
-          if [ "${allowed}" = "${APP_ORIGIN}" ]; then
-            echo "Production allows ${APP_ORIGIN}." >> "${GITHUB_STEP_SUMMARY}"
-            exit 0
-          fi
-          if [ "${PRODUCTION_CHECKED}" != true ]; then
-            echo "::error::${API_ORIGIN} did not answer ${APP_ORIGIN} with CORS from this runner (got '${allowed}'). If Cloudflare blocked the runner, check it yourself (curl -sI -H 'Origin: ${APP_ORIGIN}' ${API_ORIGIN}/api/reports) and run again with production_checked ticked."
-            exit 1
-          fi
-          echo "::warning::production CORS not checked automatically; production_checked was ticked"
-          echo "Production CORS confirmed by hand, not by this run." >> "${GITHUB_STEP_SUMMARY}"
-
   # TODO when the approved frontend lands: an XCUITest smoke on the simulator before the
   # upload (report list, open a report, a source link opens Safari, offline notice).
 
   ios:
-    needs: [preflight, production]
+    needs: preflight
     if: needs.preflight.outputs.ios == 'true'
     runs-on: macos-latest
     steps:
