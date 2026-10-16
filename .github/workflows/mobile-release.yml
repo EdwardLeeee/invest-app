@@ -6,15 +6,15 @@ name: Mobile release
 on:
   workflow_dispatch:
     inputs:
-      production_checked:
+      skip_smoke:
         description: >-
-          Tick after confirming from your own machine that https://invest.oraclelee.com
-          serves this app's origin; Cloudflare challenges curl from GitHub's runners
+          Tick only if the simulator smoke test fails for a reason outside the app (a stuck
+          simulator, a runner outage) and you checked the app against production yourself
         type: boolean
         default: false
   workflow_call:
     inputs:
-      production_checked:
+      skip_smoke:
         type: boolean
         default: false
 
@@ -24,10 +24,6 @@ permissions:
 concurrency:
   group: mobile-release
   cancel-in-progress: false
-
-env:
-  API_ORIGIN: https://invest.oraclelee.com
-  APP_ORIGIN: capacitor://localhost
 
 jobs:
   preflight:
@@ -50,28 +46,6 @@ jobs:
           echo "version=${version}" >> "${GITHUB_OUTPUT}"
           echo "build=${build}" >> "${GITHUB_OUTPUT}"
           echo "App ${version} (${build}) with the web of $(jq -r .commit web/BUILD.json)." >> "${GITHUB_STEP_SUMMARY}"
-      # The app can read nothing unless the production backend answers its origin with CORS.
-      # Cloudflare answers curl from GitHub's runners, Ubuntu and macOS alike, with a 403
-      # challenge (cf-mitigated: challenge, checked 2026-10-16), so this normally stops a run
-      # unless production_checked is ticked; the app's own WebKit requests are not challenged.
-      - name: Check production serves the app's origin
-        env:
-          PRODUCTION_CHECKED: ${{ inputs.production_checked }}
-        run: |
-          set -euo pipefail
-          allowed="$(curl --silent --show-error --max-time 20 --output /dev/null --dump-header - \
-            -H "Origin: ${APP_ORIGIN}" "${API_ORIGIN}/api/reports" \
-            | tr -d '\r' | sed -n 's/^access-control-allow-origin: //Ip' | head -n 1)" || allowed=""
-          if [ "${allowed}" = "${APP_ORIGIN}" ]; then
-            echo "Production allows ${APP_ORIGIN}." >> "${GITHUB_STEP_SUMMARY}"
-            exit 0
-          fi
-          if [ "${PRODUCTION_CHECKED}" != true ]; then
-            echo "::error::${API_ORIGIN} did not answer ${APP_ORIGIN} with CORS from this runner (got '${allowed}'); Cloudflare challenges curl from GitHub's runners. Check from your own machine (curl -s -D - -o /dev/null -H 'Origin: ${APP_ORIGIN}' ${API_ORIGIN}/api/reports, a GET: the API answers HEAD with 405) and run again with production_checked ticked."
-            exit 1
-          fi
-          echo "::warning::production CORS not checked automatically; production_checked was ticked"
-          echo "Production CORS confirmed by hand, not by this run." >> "${GITHUB_STEP_SUMMARY}"
       - id: signing
         name: Check the signing secrets
         env:
@@ -95,12 +69,35 @@ jobs:
           fi
           echo "ios=true" >> "${GITHUB_OUTPUT}"
 
-  # TODO when the approved frontend lands: an XCUITest smoke on the simulator before the
-  # upload (report list, open a report, a source link opens Safari, offline notice).
+  # The app as built from main, on a simulator, at origin capacitor://localhost: it reads
+  # production's report list and opens a report (scripts/ios-smoke.sh). This is the CORS
+  # check; curl cannot make it from GitHub's runners because Cloudflare challenges curl.
+  smoke:
+    if: ${{ !inputs.skip_smoke }}
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: "22"
+          cache: npm
+      - run: npm ci
+      - name: Smoke test on the simulator
+        run: scripts/ios-smoke.sh smoke
+      - if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: release-smoke
+          path: smoke/
+          retention-days: 30
+          if-no-files-found: ignore
 
   ios:
-    needs: preflight
-    if: needs.preflight.outputs.ios == 'true'
+    needs: [preflight, smoke]
+    # Upload only after the smoke test passed, or when it was skipped by hand (skip_smoke).
+    if: >-
+      ${{ !cancelled() && needs.preflight.result == 'success' && needs.preflight.outputs.ios == 'true'
+      && (needs.smoke.result == 'success' || (inputs.skip_smoke && needs.smoke.result == 'skipped')) }}
     runs-on: macos-latest
     steps:
       - uses: actions/checkout@v7
