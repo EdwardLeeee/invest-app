@@ -35,10 +35,12 @@ app 裡的網頁是建置當下凍結的。網站換新介面以後，要再匯�
 - `mobile.yml`：每個 PR 都跑。
   - Ubuntu：版本鎖定、`npm audit`、`web/` 的來源與 API 網址。
   - macOS：建置模擬器版，檢查 bundle id、版本、名稱、出口合規鍵、只支援 iPhone、只允許直向、網頁有打包；
-    再建置一次不簽章的 Release 裝置版；附深淺色模擬器截圖。正式站沒有對 app 回 CORS 時，run summary 會註明截圖是離線或錯誤狀態，不是對照依據。
+    再建置一次不簽章的 Release 裝置版；附深淺色模擬器截圖（模擬器實際連正式站）。
 - `mobile-release.yml`：手動執行，或由 `mobile-refresh.yml` 呼叫。
-  - 先確認正式站對 `capacitor://localhost` 回 CORS。Cloudflare 擋住 runner 時，自己用 curl 確認，再勾
-    `production_checked` 重跑。
+  - 先確認正式站對 `capacitor://localhost` 回 CORS。Cloudflare 對 GitHub runner（Ubuntu、macOS 都一樣）上的 curl
+    回 403 挑戰頁（`cf-mitigated: challenge`，2026-10-16 實測），所以這一步通常會停下：先在自己電腦上用
+    `curl -s -D - -o /dev/null -H 'Origin: capacitor://localhost' https://invest.oraclelee.com/api/reports`（GET；用 `-I` 會送 HEAD，API 回 405）確認回 200 且有
+    `access-control-allow-origin: capacitor://localhost`，再勾 `production_checked` 執行。app 本身用 WebKit 發的請求不會被挑戰。
   - 接著確認 7 個簽章 secrets 都在，然後封存並上傳到 App Store Connect。
 - `mobile-refresh.yml`：每週一 02:23 UTC 執行。
   - 用 `scripts/asc-latest-build.mjs` 查最新有效建置還剩幾天，少於 30 天才呼叫 `mobile-release.yml` 重建。

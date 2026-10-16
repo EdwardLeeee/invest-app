@@ -8,8 +8,8 @@ on:
     inputs:
       production_checked:
         description: >-
-          Tick only if the check below cannot reach the site (Cloudflare can block GitHub
-          runners) and you confirmed https://invest.oraclelee.com serves this app's origin
+          Tick after confirming from your own machine that https://invest.oraclelee.com
+          serves this app's origin; Cloudflare challenges curl from GitHub's runners
         type: boolean
         default: false
   workflow_call:
@@ -51,6 +51,9 @@ jobs:
           echo "build=${build}" >> "${GITHUB_OUTPUT}"
           echo "App ${version} (${build}) with the web of $(jq -r .commit web/BUILD.json)." >> "${GITHUB_STEP_SUMMARY}"
       # The app can read nothing unless the production backend answers its origin with CORS.
+      # Cloudflare answers curl from GitHub's runners, Ubuntu and macOS alike, with a 403
+      # challenge (cf-mitigated: challenge, checked 2026-10-16), so this normally stops a run
+      # unless production_checked is ticked; the app's own WebKit requests are not challenged.
       - name: Check production serves the app's origin
         env:
           PRODUCTION_CHECKED: ${{ inputs.production_checked }}
@@ -64,7 +67,7 @@ jobs:
             exit 0
           fi
           if [ "${PRODUCTION_CHECKED}" != true ]; then
-            echo "::error::${API_ORIGIN} did not answer ${APP_ORIGIN} with CORS from this runner (got '${allowed}'). If Cloudflare blocked the runner, check it yourself (curl -sI -H 'Origin: ${APP_ORIGIN}' ${API_ORIGIN}/api/reports) and run again with production_checked ticked."
+            echo "::error::${API_ORIGIN} did not answer ${APP_ORIGIN} with CORS from this runner (got '${allowed}'); Cloudflare challenges curl from GitHub's runners. Check from your own machine (curl -s -D - -o /dev/null -H 'Origin: ${APP_ORIGIN}' ${API_ORIGIN}/api/reports, a GET: the API answers HEAD with 405) and run again with production_checked ticked."
             exit 1
           fi
           echo "::warning::production CORS not checked automatically; production_checked was ticked"
