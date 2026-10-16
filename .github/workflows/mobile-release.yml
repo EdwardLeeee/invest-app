@@ -169,6 +169,15 @@ jobs:
             -destination "generic/platform=iOS" -archivePath "${RUNNER_TEMP}/App.xcarchive" \
             MARKETING_VERSION="${VERSION}" CURRENT_PROJECT_VERSION="${BUILD}" \
             INVEST_APPLE_TEAM_ID="${APPLE_TEAM_ID}" archive
+          # The smoke test injects its script into a simulator copy only; prove the signed
+          # app does not carry it before anything is uploaded.
+          page="${RUNNER_TEMP}/App.xcarchive/Products/Applications/App.app/public/index.html"
+          [ -f "${page}" ] || { echo "::error::no web page in the archive at ${page}"; exit 1; }
+          if grep -q "\[smoke\]" "${page}"; then
+            echo "::error::the archived app contains the smoke script; not uploading"
+            exit 1
+          fi
+          echo "The archived app's page carries no smoke script." >> "${GITHUB_STEP_SUMMARY}"
           cat > "${RUNNER_TEMP}/ExportOptions.plist" <<EOF
           <?xml version="1.0" encoding="UTF-8"?>
           <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
