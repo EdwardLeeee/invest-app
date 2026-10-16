@@ -98,6 +98,13 @@ jobs:
             -H "Origin: capacitor://localhost" https://invest.oraclelee.com/api/reports \
             | tr -d '\r' | sed -n 's/^access-control-allow-origin: //Ip' | head -n 1)" || allowed=""
           echo "production CORS for capacitor://localhost from this macOS runner: '${allowed}'"
+          # Diagnosis: what Cloudflare answers this runner, with curl's own agent and Safari's.
+          for ua in "" "Mozilla/5.0 (iPhone; CPU iPhone OS 18_7 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Mobile/15E148"; do
+            echo "--- user agent: '${ua:-curl default}'"
+            curl --silent --show-error --max-time 20 --output /dev/null --dump-header - ${ua:+-A "${ua}"} \
+              -H "Origin: capacitor://localhost" https://invest.oraclelee.com/api/reports \
+              | tr -d '\r' | grep -i -E '^HTTP|^server:|^cf-mitigated|^cf-ray|^access-control-allow-origin|^content-type' || echo "curl failed: $?"
+          done
           {
             echo "### Simulator screenshots"
             if [ "${allowed}" = "capacitor://localhost" ]; then
