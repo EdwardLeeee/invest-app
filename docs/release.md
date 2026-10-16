@@ -37,7 +37,8 @@ app 裡的網頁是建置當下凍結的。網站換新介面以後，要再匯�
   - macOS：建置模擬器版，檢查 bundle id、版本、名稱、出口合規鍵、只支援 iPhone、只允許直向、網頁有打包；
     再建置一次不簽章的 Release 裝置版；附深淺色模擬器截圖。正式站沒有對 app 回 CORS 時，run summary 會註明截圖是離線或錯誤狀態，不是對照依據。
 - `mobile-release.yml`：手動執行，或由 `mobile-refresh.yml` 呼叫。
-  - 先確認正式站對 `capacitor://localhost` 回 CORS。Cloudflare 擋住 runner 時，自己用 curl 確認，再勾
+  - 先在 macOS runner 上確認正式站對 `capacitor://localhost` 回 CORS（`production` job）。Cloudflare 會擋 GitHub 的
+    Ubuntu runner（完全拿不到標頭），macOS runner 則連得到。萬一 macOS 也被擋，自己用 curl 確認後勾
     `production_checked` 重跑。
   - 接著確認 7 個簽章 secrets 都在，然後封存並上傳到 App Store Connect。
 - `mobile-refresh.yml`：每週一 02:23 UTC 執行。
