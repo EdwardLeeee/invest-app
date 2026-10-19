@@ -38,7 +38,10 @@ app 裡的網頁是建置當下凍結的。網站換新介面以後，要再匯�
     再建置一次不簽章的 Release 裝置版；跑**模擬器 smoke test**（必須通過）；附深淺色模擬器截圖。
 - **模擬器 smoke test**（`scripts/ios-smoke.sh` 加 `.github/smoke/smoke.js`）：把檢查腳本注入模擬器建置的**副本**
   （簽章的 app 不會有它），在 iPhone 模擬器裡由 app 自己的 WebKit、以 `capacitor://localhost` 讀正式站的報告清單，
-  點開第一份報告，等摘要頁出現；任何 fetch 失敗、HTTP 錯誤或 JS 錯誤都算失敗。這就是 CORS 檢查：Cloudflare 對
+  點開第一份報告，等摘要頁出現；任何 fetch 失敗、HTTP 錯誤或 JS 錯誤都算失敗。唯一的例外是說明章端點
+  `/api/reports/{代號}/versions/{版本}/walkthrough` 回 404：沒有「目標價怎麼算」的報告照設計回 404，
+  摘要頁就不畫那一列（研究室 68c3d97 起）。只比對路徑，查詢字串（例如 `?currencies=USD,TWD`）不影響；
+  那個路徑回 5xx、其他路徑回任何 4xx／5xx 仍算失敗。這就是 CORS 檢查：Cloudflare 對
   GitHub runner（Ubuntu、macOS 都一樣）上的 curl 回 403 挑戰頁（`cf-mitigated: challenge`，2026-10-16 實測），
   但不擋 app 的 WebKit。結果在 run summary 與 artifact（console 全文與截圖）。
   發版時封存出來、要上傳的 app 會另外檢查網頁裡沒有 `[smoke]` 字樣，確認簽章的 app 沒帶到檢查腳本。
