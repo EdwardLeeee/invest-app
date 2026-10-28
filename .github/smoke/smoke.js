@@ -60,10 +60,11 @@
     say("report", location.pathname, pageText.slice(0, 100));
     await new Promise((res) => setTimeout(res, 1500)); // let the page's own fetches settle
     // A report without 目標價怎麼算 answers 404 at its walkthrough, and the summary then
-    // draws no chapter row (research repo 68c3d97); every other 4xx or 5xx still fails.
-    const noChapter = ([status, url]) =>
-      status === 404 && /\/api\/reports\/[^/]+\/versions\/[^/]+\/walkthrough$/.test(new URL(url).pathname);
-    const bad = fetched.filter((f) => f[0] >= 400 && !noChapter(f));
+    // draws no chapter row (research repo 68c3d97); a report without 目標會怎麼變 answers 404
+    // at its target-moves, and the summary draws no card (ad55b13). Every other 4xx or 5xx still fails.
+    const noCard = ([status, url]) =>
+      status === 404 && /\/api\/reports\/[^/]+\/versions\/[^/]+\/(walkthrough|target-moves)$/.test(new URL(url).pathname);
+    const bad = fetched.filter((f) => f[0] >= 400 && !noCard(f));
     if (bad.length) throw new Error(`HTTP errors: ${bad.map(([s, u]) => `${s} ${u}`).join(", ")}`);
     if (errors.length) throw new Error(errors.join("; "));
     say("fetches", fetched.map(([s, u]) => `${s} ${u.replace(build.api_origin, "")}`).join(", "));
