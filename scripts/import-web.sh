@@ -27,10 +27,15 @@ fi
 
 work="$(mktemp -d)"
 trap 'rm -rf "${work}"' EXIT
-# A clean export of the commit, not the working tree: frontend/ plus the published reports
-# and settlements that the type check (tsc -b) reads through the tests, as the research
-# repository's Containerfile copies them for its own frontend build.
-git -C "${INVEST_REPO}" archive "${commit}" frontend reports/published reports/settlements | tar -x -C "${work}"
+# A clean export of the commit, not the working tree: frontend/ plus the published reports,
+# settlements and lab tests that the type check (tsc -b) reads through the tests, as the research
+# repository's Containerfile copies them for its own frontend build. A directory the commit
+# does not have yet (reports/lab-tests before f5e2bbe) is left out, so an older commit still builds.
+paths=(frontend)
+for dir in reports/published reports/settlements reports/lab-tests; do
+    if git -C "${INVEST_REPO}" cat-file -e "${commit}:${dir}" 2>/dev/null; then paths+=("${dir}"); fi
+done
+git -C "${INVEST_REPO}" archive "${commit}" "${paths[@]}" | tar -x -C "${work}"
 (
     cd "${work}/frontend"
     npm ci --no-audit --no-fund --loglevel=error
