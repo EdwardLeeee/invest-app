@@ -47,6 +47,11 @@ app 裡的網頁是建置當下凍結的。網站換新介面以後，要再匯�
   只比對路徑，查詢字串（例如 `?currencies=USD,TWD`）不影響；這兩個路徑回 5xx、其他路徑回任何 4xx／5xx 仍算失敗。這就是 CORS 檢查：Cloudflare 對
   GitHub runner（Ubuntu、macOS 都一樣）上的 curl 回 403 挑戰頁（`cf-mitigated: challenge`，2026-10-16 實測），
   但不擋 app 的 WebKit。結果在 run summary 與 artifact（console 全文與截圖）。
+  app 一啟動會先印 Capacitor 自己的「Loading app at capacitor://…」，之後網頁才載入。launch 後 60 秒內
+  連這行都沒有，代表模擬器沒把 app 跑起來，網頁根本沒載入（2026-10-29 兩次，runner 很慢）；這時重新 launch
+  一次，第一次的 console 與截圖另存為 `console-first-launch.log`、`first-launch.png`。網頁仍必須在 120 秒內
+  回 PASS。失敗訊息分兩種：「the app did not start」是兩次都沒跑起來，「the page gave no verdict」是網頁載入了
+  但沒給判定。
   發版時封存出來、要上傳的 app 會另外檢查網頁裡沒有 `[smoke]` 字樣，確認簽章的 app 沒帶到檢查腳本。
   - **和前端的耦合**：腳本用到研究室前端的 `a.rep`（首頁報告列）、`.pg-summary`（報告摘要頁）、`.pg-status`
     （狀態頁）與「沒有網路連線」字樣。前端改了這些名稱，smoke 會 FAIL（不會誤判通過）；重新匯入 `web/` 後

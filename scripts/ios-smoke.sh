@@ -44,9 +44,28 @@ xcrun simctl boot "${udid}" 2>/dev/null || true
 xcrun simctl bootstatus "${udid}" -b >/dev/null
 xcrun simctl uninstall "${udid}" "${bundle_id}" 2>/dev/null || true
 xcrun simctl install "${udid}" "${work}/App.app"
-xcrun simctl launch --console-pty --terminate-running-process "${udid}" "${bundle_id}" \
-    > "${out}/console.log" 2>&1 &
-launcher=$!
+launch() {
+    xcrun simctl launch --console-pty --terminate-running-process "${udid}" "${bundle_id}" \
+        > "${out}/console.log" 2>&1 &
+    launcher=$!
+}
+# The app prints Capacitor's own line as soon as it starts, before any page loads. A slow simulator
+# has launched the app and never had it print anything (2026-10-29, twice): the page was never
+# reached, so that launch says nothing about the page. Such a launch is retried once.
+started() { grep -a -q -E 'Loading app at capacitor://|\[smoke\]' "${out}/console.log"; }
+launch
+for _ in $(seq 1 60); do
+    started && break
+    sleep 1
+done
+if ! started; then
+    echo "the app printed nothing within 60 s of launch; launching it again"
+    cp "${out}/console.log" "${out}/console-first-launch.log"
+    xcrun simctl io "${udid}" screenshot "${out}/first-launch.png" >/dev/null 2>&1 || true
+    xcrun simctl terminate "${udid}" "${bundle_id}" 2>/dev/null || true
+    kill "${launcher}" 2>/dev/null || true
+    launch
+fi
 
 verdict=""
 for _ in $(seq 1 120); do
@@ -68,6 +87,11 @@ if [ -n "${GITHUB_STEP_SUMMARY:-}" ]; then
 fi
 case "${verdict}" in
     "[smoke] PASS") exit 0 ;;
-    "") echo "::error::the smoke test gave no verdict within 120 s; see ${out}/console.log"; exit 1 ;;
+    "") if started; then
+            echo "::error::the page gave no verdict within 120 s; see ${out}/console.log"
+        else
+            echo "::error::the app did not start on the simulator (no output after two launches); see ${out}/console.log"
+        fi
+        exit 1 ;;
     *) echo "::error::${verdict}"; exit 1 ;;
 esac
